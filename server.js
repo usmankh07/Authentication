@@ -1,11 +1,19 @@
 const express = require('express');
 const session = require('express-session');
+const { default: mongoose } = require('mongoose');
 const passport = require('passport');
 require('./oauth')
 require('dotenv').config();
 const app = express();
 app.set('view engine', 'ejs')
 const port = process.env.PORT
+const User = require('./model/user');
+
+const database_link = process.env.MONGODB_LINK  
+
+mongoose.connect(database_link, () => {
+  console.log(`Database is connected!`);
+})
 
 
 function isLoggedIn(req, res, next) {
@@ -59,7 +67,7 @@ app.get('/facebook/callback',
 )
 
 app.get('/protected/fb', isLoggedIn, (req, res) => {  
-  res.send(`Hello ${req.user.displayName}`);
+  res.send(`Hello ${req.user.name}`);
 })
 
 

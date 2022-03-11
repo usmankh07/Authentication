@@ -1,4 +1,5 @@
 const passport = require('passport');
+const User = require('./model/user')
 
 // Google Authentication
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
@@ -26,11 +27,51 @@ const FACEBOOK_APP_SECRET = "222949b6501ba13b80f9e72fbedcbd58";
 passport.use(new FacebookStrategy({
   clientID: FACEBOOK_APP_ID,
   clientSecret: FACEBOOK_APP_SECRET,
-  callbackURL: "http://localhost:8000/facebook/callback"
+  callbackURL: "http://localhost:8000/facebook/callback",
+  profileFields: ['id', 'displayName', 'name', 'gender', 'picture']
 },
   function (request, accessToken, refreshToken, profile, done) {
-    return done(null, profile);
-  }));
+   // asynchronous
+process.nextTick(function() {
+
+  // find the user in the database based on their facebook id
+  User.findOne({ 'uid' : profile.id }, function(err, user) {
+
+      // if there is an error, stop everything and return that
+      // ie an error connecting to the database
+      if (err)
+          return done(err);
+
+      // if the user is found, then log them in
+      if (user) {
+          console.log("user found")
+          console.log(user)
+          return done(null, user); // user found, return that user
+      } else {
+          // if there is no user found with that facebook id, create them
+          var newUser            = new User();
+
+          // set all of the facebook information in our user model
+          newUser.uid    = profile.id; // set the users facebook id                   
+          newUser.name  = profile.name.givenName + ' ' + profile.name.familyName; // look at the passport user profile to see how names are returned
+          newUser.pic = profile.photos[0].value
+          newUser.gender = profile.gender;
+          // save our user to the database
+          newUser.save(function(err) {
+              if (err)
+                  throw err;
+
+              // if successful, return the new user
+              return done(null, newUser);
+          });
+      }
+
+  });
+
+})
+
+}));
+ 
 
 
   // Github Authentication
@@ -43,18 +84,18 @@ passport.use(new FacebookStrategy({
     callbackURL: "http://localhost:8000/github/callback"
   },
   function(accessToken, refreshToken, profile, done) {
-    return done(null, profile);
+    return done(null, profile)
   }
-));
+  ))
 
 
   passport.serializeUser(function (user, done) {
-    done(null, user);
+    done(null, user.id);
     }
   );
   
   passport.deserializeUser(function (user, done) {
-    done(null, user);
+  done(null, user)
     }
   );
   
